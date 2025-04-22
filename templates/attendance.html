@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance - Facial Recognition Attendance{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Attendance Records</h2>
+    
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <!-- Main attendance content -->
+        <div class="col-md-8">
+            <!-- Monthly Calendar -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Monthly Calendar</h5>
+                        <div class="d-flex align-items-center">
+                            <h5 class="card-title mb-0 text-primary me-3">{{ selected_date.split('-')[0] }} - {{ selected_date.split('-')[1]|int }}</h5>
+                            {% if current_user.role in ['admin', 'superuser'] %}
+                            <a href="#" onclick="exportAttendance('{{ selected_date }}')" class="btn btn-success">
+                                <i class="fas fa-file-excel"></i> Export to Excel
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for date in dates_in_month %}
+                        <div class="col-4 col-md-2 mb-3">
+                            <a href="{{ url_for('attendance', date=date) }}" 
+                               class="text-decoration-none">
+                                <div class="card h-100 {% if date == selected_date %}border-primary{% endif %} {% if date == today_date %}bg-light{% endif %}">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title">
+                                            {{ date.split('-')[2] }}
+                                            {% if date == today_date %}
+                                            <span class="badge bg-primary">Today</span>
+                                            {% endif %}
+                                        </h6>
+                                        {% if date in monthly_summary %}
+                                        <div class="small">
+                                            {% if 'Present' in monthly_summary[date] %}
+                                            <span class="badge bg-success">{{ monthly_summary[date]['Present'] }}P</span>
+                                            {% endif %}
+                                            {% if 'Late' in monthly_summary[date] %}
+                                            <span class="badge bg-warning text-dark">{{ monthly_summary[date]['Late'] }}L</span>
+                                            {% endif %}
+                                            {% if 'Absent' in monthly_summary[date] %}
+                                            <span class="badge bg-danger">{{ monthly_summary[date]['Absent'] }}A</span>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        {% if date == today_date %}
+                                        <div class="small">
+                                            <span class="badge bg-danger">All Absent</span>
+                                        </div>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Daily Attendance -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Attendance for {{ selected_date }}</h5>
+                        <div class="btn-group">
+                            <a href="{{ url_for('attendance', date=(selected_date|date_add(-1)) ) }}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </a>
+                            <a href="{{ url_for('attendance', date=(selected_date|date_add(1)) ) }}" 
+                               class="btn btn-outline-primary">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Attendance Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Present</h5>
+                                    <h2>{{ stats.get('Present', 0) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-warning text-dark">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Late</h5>
+                                    <h2>{{ stats.get('Late', 0) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Absent</h5>
+                                    <h2>{{ stats.get('Absent', 0) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Attendance Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Department</th>
+                                    <th>Gender</th>
+                                    <th>Status</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in attendance_data %}
+                                <tr>
+                                    <td>{{ record.UID }}</td>
+                                    <td>{{ record.HoVaTen }}</td>
+                                    <td>{{ record.Lop }}</td>
+                                    <td>{{ record.Gender }}</td>
+                                    <td>
+                                        {% if record.DiemDanhStatus == 'Present' %}
+                                        <span class="badge bg-success">Present</span>
+                                        {% elif record.DiemDanhStatus == 'Late' %}
+                                        <span class="badge bg-warning text-dark">Late</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Absent</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.DiemDanhTime %}
+                                        {% set time = record.DiemDanhTime %}
+                                        {{ "%02d:%02d:%02d"|format(time.hour, time.minute, time.second) }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cutoff settings card -->
+        {% if current_user.role in ['admin', 'superuser'] %}
+        <div class="col-md-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Cutoff Settings</h5>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form id="cutoff-form">
+                        <div class="mb-3">
+                            <label for="gmt" class="form-label">GMT Offset</label>
+                            <select class="form-select" id="gmt">
+                                <option value="GMT+7" {% if gmt == 'GMT+7' %}selected{% endif %}>GMT+7 (Vietnam)</option>
+                                <option value="GMT+8" {% if gmt == 'GMT+8' %}selected{% endif %}>GMT+8</option>
+                                <option value="GMT+6" {% if gmt == 'GMT+6' %}selected{% endif %}>GMT+6</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cutoff Time</label>
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <select class="form-select" id="cutoff-hour">
+                                        {% for i in range(1, 13) %}
+                                        <option value="{{ '%02d' % i }}">{{ '%02d' % i }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <select class="form-select" id="cutoff-minute">
+                                        {% for i in range(0, 60, 5) %}
+                                        <option value="{{ '%02d' % i }}">{{ '%02d' % i }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <select class="form-select" id="cutoff-ampm">
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100" onclick="saveCutoffSettings()">
+                            <i class="fas fa-save"></i> Save Settings
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function saveCutoffSettings() {
+        const gmt = document.getElementById('gmt').value;
+        let hour = parseInt(document.getElementById('cutoff-hour').value);
+        const minute = document.getElementById('cutoff-minute').value;
+        const ampm = document.getElementById('cutoff-ampm').value;
+        
+        // Convert to 24-hour format
+        if (ampm === 'PM' && hour < 12) hour += 12;
+        if (ampm === 'AM' && hour === 12) hour = 0;
+        
+        const cutoffTime = `${('0' + hour).slice(-2)}:${minute}`;
+        
+        fetch('/api/set_cutoff', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                gmt: gmt,
+                cutoff_time: cutoffTime
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Cutoff settings saved successfully');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving settings');
+        });
+    }
+
+    // Load current cutoff time when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/get_cutoff')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const cutoffTime = data.cutoff_time;
+                    const [hours, minutes] = cutoffTime.split(':');
+                    let hour = parseInt(hours);
+                    const ampm = hour >= 12 ? 'PM' : 'AM';
+                    hour = hour % 12 || 12;
+                    
+                    document.getElementById('cutoff-hour').value = ('0' + hour).slice(-2);
+                    document.getElementById('cutoff-minute').value = minutes;
+                    document.getElementById('cutoff-ampm').value = ampm;
+                    document.getElementById('gmt').value = data.gmt;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading cutoff time:', error);
+            });
+    });
+
+    function exportAttendance(date) {
+        fetch(`/export_attendance/${date}`)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Failed to export attendance data');
+                    });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `attendance_${date}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(error.message);
+            });
+    }
+</script>
+{% endblock %} 

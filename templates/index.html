@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Facial Recognition Attendance{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Dashboard</h1>
+        </div>
+        <div class="col text-end">
+            <button id="refreshFaces" class="btn btn-primary">
+                <i class="fas fa-sync"></i> Refresh Face Data
+            </button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Live Camera Feed</h5>
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('video_feed') }}" class="img-fluid" alt="Camera Feed">
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Quick Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{{ url_for('attendance') }}" class="list-group-item list-group-item-action">
+                            Today's Attendance
+                        </a>
+                        <a href="{{ url_for('students') }}" class="list-group-item list-group-item-action">
+                            Total Students
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">System Status</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Camera
+                            <span class="badge bg-success">Active</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Face Recognition
+                            <span class="badge bg-success">Connected</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Database
+                            <span class="badge bg-success">Connected</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('refreshFaces').addEventListener('click', async function() {
+    try {
+        const response = await fetch('/refresh_faces', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Face data refreshed successfully');
+        } else {
+            alert('Failed to refresh face data: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error refreshing face data: ' + error.message);
+    }
+});
+</script>
+{% endblock %} 

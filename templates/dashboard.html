@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Facial Recognition Attendance{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Dashboard</h2>
+    
+    <!-- System Status Card -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">System Status</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <div id="db-status-indicator" class="status-indicator"></div>
+                        <span class="ms-2">Database: <span id="db-status-text">Checking...</span></span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <div id="model-status-indicator" class="status-indicator"></div>
+                        <span class="ms-2">Face Recognition: <span id="model-status-text">Checking...</span></span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <div id="camera-status-indicator" class="status-indicator"></div>
+                        <span class="ms-2">Camera: <span id="camera-status-text">Inactive</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Control Card -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Camera Control</h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex justify-content-center">
+                <a id="startCameraBtn" class="btn btn-primary me-2" href="/camera" target="_blank">Start Camera</a>
+                <button id="stopCameraBtn" class="btn btn-danger" disabled>Stop Camera</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.status-indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #dc3545;
+}
+
+.status-indicator.active {
+    background-color: #28a745;
+}
+</style>
+
+<script>
+let statusCheckInterval = null;
+
+// Function to check system and camera status
+async function checkStatus() {
+    try {
+        const response = await fetch('/api/status');
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update database status
+            const dbIndicator = document.getElementById('db-status-indicator');
+            const dbText = document.getElementById('db-status-text');
+            dbIndicator.classList.toggle('active', data.database.status);
+            dbText.textContent = data.database.message;
+            
+            // Update face recognition status
+            const modelIndicator = document.getElementById('model-status-indicator');
+            const modelText = document.getElementById('model-status-text');
+            modelIndicator.classList.toggle('active', data.face_recognition.status);
+            modelText.textContent = data.face_recognition.message;
+            
+            // Check camera status
+            const cameraResponse = await fetch('/api/camera_status');
+            const cameraData = await cameraResponse.json();
+            
+            if (cameraData.success) {
+                const cameraIndicator = document.getElementById('camera-status-indicator');
+                const cameraText = document.getElementById('camera-status-text');
+                cameraIndicator.classList.toggle('active', cameraData.camera.status);
+                cameraText.textContent = cameraData.camera.message;
+                
+                // Update button states based on camera status
+                document.getElementById('startCameraBtn').disabled = cameraData.camera.status;
+                document.getElementById('stopCameraBtn').disabled = !cameraData.camera.status;
+            }
+        }
+    } catch (error) {
+        console.error('Error checking status:', error);
+    }
+}
+
+// Function to stop camera
+async function stopCamera() {
+    try {
+        const response = await fetch('/api/stop_camera', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update button states
+            document.getElementById('startCameraBtn').disabled = false;
+            document.getElementById('stopCameraBtn').disabled = true;
+        }
+    } catch (error) {
+        console.error('Error stopping camera:', error);
+    }
+}
+
+// Event listeners
+document.getElementById('stopCameraBtn').addEventListener('click', stopCamera);
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    // Start status check interval
+    statusCheckInterval = setInterval(checkStatus, 5000);
+    
+    // Initial status check
+    checkStatus();
+});
+
+// Cleanup when window is closed
+window.addEventListener('unload', () => {
+    if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+    }
+});
+</script>
+{% endblock %} 
